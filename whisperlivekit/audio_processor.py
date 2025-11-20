@@ -138,14 +138,18 @@ class AudioProcessor:
         self.transcription = None
         self.translation = None
         self.diarization = None
+        self.french_simplifier = None
 
         if self.args.transcription:
-            self.transcription = online_factory(self.args, models.asr)        
-            self.sep = self.transcription.asr.sep   
+            self.transcription = online_factory(self.args, models.asr)
+            self.sep = self.transcription.asr.sep
         if self.args.diarization:
             self.diarization = online_diarization_factory(self.args, models.diarization_model)
         if models.translation_model:
             self.translation = online_translation_factory(self.args, models.translation_model)
+        if models.french_simplifier:
+            self.french_simplifier = models.french_simplifier
+            self.simplified_lines_cache = {}  # Cache to avoid re-simplifying
 
     async def _push_silence_event(self, silence_buffer: Silence):
         if not self.diarization_before_transcription and self.transcription_queue:
@@ -473,6 +477,23 @@ class AudioProcessor:
                     args = self.args,
                     sep=self.sep
                 )
+
+                # Simplify French text for validated lines
+                if self.french_simplifier and lines:
+                    for line in lines:
+                        # Only simplify if we haven't already and there's text
+                        line_key = f"{line.speaker}_{line.start}_{line.end}_{line.text}"
+                        if line.text and line_key not in self.simplified_lines_cache:
+                            try:
+                                simplified = await self.french_simplifier.simplify_text(line.text)
+                                line.simplified_text = simplified
+                                self.simplified_lines_cache[line_key] = simplified
+                            except Exception as e:
+                                logger.debug(f"Simplification error for line: {e}")
+                                line.simplified_text = line.text  # Fallback to original
+                        elif line_key in self.simplified_lines_cache:
+                            line.simplified_text = self.simplified_lines_cache[line_key]
+
                 if lines and lines[-1].speaker == -2:
                     buffer_transcription = Transcript()
                 else:
@@ -490,6 +511,15 @@ class AudioProcessor:
                     raw_buffer_translation = getattr(state.buffer_translation, 'text', state.buffer_translation)
                     if raw_buffer_translation:
                         buffer_translation_text = raw_buffer_translation.strip()
+
+                # Simplify buffer text if enabled
+                buffer_simplified_text = ''
+                if self.french_simplifier and buffer_transcription:
+                    try:
+                        buffer_simplified_text = await self.french_simplifier.simplify_text(buffer_transcription.text.strip())
+                    except Exception as e:
+                        logger.debug(f"Simplification error for buffer: {e}")
+                        buffer_simplified_text = buffer_transcription.text.strip()
                 
                 response_status = "active_transcription"
                 if not state.tokens and not buffer_transcription and not buffer_diarization:
@@ -508,6 +538,7 @@ class AudioProcessor:
                     buffer_transcription=buffer_transcription.text.strip(),
                     buffer_diarization=buffer_diarization,
                     buffer_translation=buffer_translation_text,
+                    buffer_simplified=buffer_simplified_text,
                     remaining_time_transcription=state.remaining_time_transcription,
                     remaining_time_diarization=state.remaining_time_diarization if self.args.diarization else 0
                 )

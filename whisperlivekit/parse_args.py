@@ -126,7 +126,40 @@ def parse_args():
         default="",
         dest="target_language",
         help="Target language for translation. Not functional yet.",
-    )    
+    )
+
+    parser.add_argument(
+        "--simplify-french",
+        action="store_true",
+        default=False,
+        dest="simplify_french",
+        help="Enable French text simplification using LLM APIs.",
+    )
+
+    parser.add_argument(
+        "--simplify-backend",
+        type=str,
+        default="openai",
+        choices=["openai", "anthropic"],
+        dest="simplify_backend",
+        help="LLM backend to use for French simplification (default: openai).",
+    )
+
+    parser.add_argument(
+        "--simplify-api-key",
+        type=str,
+        default=None,
+        dest="simplify_api_key",
+        help="API key for the simplification backend. Can also be set via OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable.",
+    )
+
+    parser.add_argument(
+        "--simplify-model",
+        type=str,
+        default=None,
+        dest="simplify_model",
+        help="Model to use for simplification (default: gpt-4o-mini for OpenAI, claude-3-5-haiku-20241022 for Anthropic).",
+    )
 
     parser.add_argument(
         "--backend-policy",
