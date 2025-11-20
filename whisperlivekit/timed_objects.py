@@ -131,7 +131,8 @@ class Silence():
 @dataclass
 class Line(TimedText):
     translation: str = ''
-    
+    simplified_text: str = ''
+
     def to_dict(self):
         _dict = {
             'speaker': int(self.speaker) if self.speaker != -1 else 1,
@@ -141,12 +142,14 @@ class Line(TimedText):
         }
         if self.translation:
             _dict['translation'] = self.translation
+        if self.simplified_text:
+            _dict['simplified_text'] = self.simplified_text
         if self.detected_language:
             _dict['detected_language'] = self.detected_language
         return _dict
     
 
-@dataclass  
+@dataclass
 class FrontData():
     status: str = ''
     error: str = ''
@@ -154,9 +157,10 @@ class FrontData():
     buffer_transcription: str = ''
     buffer_diarization: str = ''
     buffer_translation: str = ''
+    buffer_simplified: str = ''
     remaining_time_transcription: float = 0.
     remaining_time_diarization: float = 0.
-    
+
     def to_dict(self):
         _dict = {
             'status': self.status,
@@ -164,6 +168,7 @@ class FrontData():
             'buffer_transcription': self.buffer_transcription,
             'buffer_diarization': self.buffer_diarization,
             'buffer_translation': self.buffer_translation,
+            'buffer_simplified': self.buffer_simplified,
             'remaining_time_transcription': self.remaining_time_transcription,
             'remaining_time_diarization': self.remaining_time_diarization,
         }

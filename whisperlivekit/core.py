@@ -33,6 +33,10 @@ class TranscriptionEngine:
             "diarization": False,
             "punctuation_split": False,
             "target_language": "",
+            "simplify_french": False,
+            "simplify_backend": "openai",
+            "simplify_api_key": None,
+            "simplify_model": None,
             "vac": True,
             "vac_onnx": False,
             "vac_chunk_size": 0.04,
@@ -158,12 +162,27 @@ class TranscriptionEngine:
                     from nllw import load_model
                 except:
                     raise Exception('To use translation, you must install nllw: `pip install nllw`')
-                translation_params = { 
+                translation_params = {
                     "nllb_backend": "transformers",
                     "nllb_size": "600M"
                 }
                 translation_params = update_with_kwargs(translation_params, kwargs)
                 self.translation_model = load_model([self.args.lan], **translation_params) #in the future we want to handle different languages for different speakers
+
+        self.french_simplifier = None
+        if self.args.simplify_french:
+            try:
+                from whisperlivekit.french_simplifier import FrenchSimplifier
+                self.french_simplifier = FrenchSimplifier(
+                    backend=self.args.simplify_backend,
+                    api_key=self.args.simplify_api_key,
+                    model=self.args.simplify_model
+                )
+                logger.info(f"French simplification enabled using {self.args.simplify_backend} backend")
+            except Exception as e:
+                logger.error(f"Failed to initialize French simplifier: {e}")
+                raise
+
         TranscriptionEngine._initialized = True
 
 
